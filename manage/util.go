@@ -7,10 +7,8 @@ import (
 	"github.com/go-oauth2/oauth2/v4/errors"
 )
 
-type (
-	// ValidateURIHandler validates that redirectURI is contained in baseURI
-	ValidateURIHandler func(baseURI, redirectURI string) error
-)
+// ValidateURIHandler validates that redirectURI is contained in baseURI
+type ValidateURIHandler func(baseURI, redirectURI string) error
 
 // DefaultValidateURI validates that redirectURI is contained in baseURI
 func DefaultValidateURI(baseURI string, redirectURI string) error {
