@@ -6,9 +6,8 @@ import (
 	"time"
 )
 
-type (
-	// GenerateBasic provide the basis of the generated token data
-	GenerateBasic struct {
+// GenerateBasic provide the basis of the generated token data
+	type	GenerateBasic struct {
 		Client    ClientInfo
 		UserID    string
 		CreateAt  time.Time
@@ -17,12 +16,12 @@ type (
 	}
 
 	// AuthorizeGenerate generate the authorization code interface
-	AuthorizeGenerate interface {
+	type AuthorizeGenerate interface {
 		Token(ctx context.Context, data *GenerateBasic) (code string, err error)
 	}
 
 	// AccessGenerate generate the access and refresh tokens interface
-	AccessGenerate interface {
+	type AccessGenerate interface {
 		Token(ctx context.Context, data *GenerateBasic, isGenRefresh bool) (access, refresh string, err error)
 	}
-)
+
