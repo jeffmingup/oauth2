@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/go-oauth2/oauth2/v4/generates"
 	"io"
 	"log"
 	"net/http"
@@ -13,12 +12,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-oauth2/oauth2/v4/generates"
+
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/go-oauth2/oauth2/v4/store"
 	"github.com/go-session/session"
+
+	"github.com/go-oauth2/mysql/v4"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -38,6 +42,7 @@ func init() {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 	flag.Parse()
 	if dumpvar {
 		log.Println("Dumping requests")
@@ -46,7 +51,13 @@ func main() {
 	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
 
 	// token store
-	manager.MustTokenStorage(store.NewMemoryTokenStore())
+	storeMysql := mysql.NewDefaultStore(
+		mysql.NewConfig("root:root@tcp(127.0.0.1:3306)/myapp_test?charset=utf8"),
+	)
+
+	defer storeMysql.Close()
+
+	manager.MapTokenStorage(storeMysql)
 
 	// generate jwt access token
 	// manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS512))
@@ -96,10 +107,12 @@ func main() {
 
 		var form url.Values
 		if v, ok := store.Get("ReturnUri"); ok {
+			log.Println("returnuri", v)
 			form = v.(url.Values)
 		}
+		log.Println("1", r.Form)
 		r.Form = form
-
+		log.Println("2", r.Form)
 		store.Delete("ReturnUri")
 		store.Save()
 
@@ -143,7 +156,7 @@ func main() {
 	log.Printf("Server is running at %d port.\n", portvar)
 	log.Printf("Point your OAuth client Auth endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/authorize")
 	log.Printf("Point your OAuth client Token endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/token")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d",portvar), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", portvar), nil))
 }
 
 func dumpRequest(writer io.Writer, header string, r *http.Request) error {
@@ -222,7 +235,8 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := store.Get("LoggedInUserID"); !ok {
+	if v, ok := store.Get("LoggedInUserID"); !ok {
+		log.Println(v)
 		w.Header().Set("Location", "/login")
 		w.WriteHeader(http.StatusFound)
 		return

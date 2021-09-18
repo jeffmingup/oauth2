@@ -40,7 +40,9 @@ func main() {
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		http.Redirect(w, r, u, http.StatusFound)
 	})
-
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("5555"))
+	})
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		state := r.Form.Get("state")
@@ -55,6 +57,7 @@ func main() {
 		}
 		token, err := config.Exchange(context.Background(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
 		if err != nil {
+			log.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

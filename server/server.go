@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -157,7 +158,8 @@ func (s *Server) CheckCodeChallengeMethod(ccm oauth2.CodeChallengeMethod) bool {
 func (s *Server) ValidationAuthorizeRequest(r *http.Request) (*AuthorizeRequest, error) {
 	redirectURI := r.FormValue("redirect_uri")
 	clientID := r.FormValue("client_id")
-	if !(r.Method == "GET" || r.Method == "POST") ||
+	log.Println(redirectURI, clientID)
+	if (r.Method != "GET" && r.Method != "POST") ||
 		clientID == "" {
 		return nil, errors.ErrInvalidRequest
 	}
@@ -307,8 +309,7 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 // ValidationTokenRequest the token request validation
 func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oauth2.TokenGenerateRequest, error) {
-	if v := r.Method; !(v == "POST" ||
-		(s.Config.AllowGetAccessRequest && v == "GET")) {
+	if v := r.Method; v != "POST" && (!s.Config.AllowGetAccessRequest || v != "GET") {
 		return "", nil, errors.ErrInvalidRequest
 	}
 
