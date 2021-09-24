@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -61,6 +62,7 @@ func ClientFormHandler(r *http.Request) (string, string, error) {
 func ClientBasicHandler(r *http.Request) (string, string, error) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
+		log.Println("333333333")
 		return "", "", errors.ErrInvalidClient
 	}
 	return username, password, nil

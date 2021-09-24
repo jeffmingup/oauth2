@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	goerrors "errors"
 	"flag"
 	"fmt"
-	"github.com/go-oauth2/oauth2/v4/generates"
 	"io"
 	"log"
 	"net/http"
@@ -13,7 +14,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-oauth2/oauth2/v4/generates"
+	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
+
 	"github.com/go-oauth2/oauth2/v4/errors"
+	"github.com/go-oauth2/oauth2/v4/internal/pkg/db"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
@@ -39,6 +45,7 @@ func init() {
 
 func main() {
 	flag.Parse()
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 	if dumpvar {
 		log.Println("Dumping requests")
 	}
@@ -53,21 +60,44 @@ func main() {
 	manager.MapAccessGenerate(generates.NewAccessGenerate())
 
 	clientStore := store.NewClientStore()
-	clientStore.Set(idvar, &models.Client{
-		ID:     idvar,
-		Secret: secretvar,
-		Domain: domainvar,
-	})
+	// clientStore.Set(idvar, &models.Client{
+	// 	ID:     idvar,
+	// 	Secret: secretvar,
+	// 	Domain: domainvar,
+	// })
+
+	//把数据库中的客户端信息存入内存
+	type clientDetail struct {
+		ID     string `gorm:"column:CLIENT_ID;primaryKeys"`
+		Secret string `gorm:"column:CLIENT_SECRET"`
+		Domain string `gorm:"column:WEB_SERVER_REDIRECT_URI"`
+	}
+
+	var clientDetails []clientDetail
+	db.DB.Table("oauth_client_details").Find(&clientDetails)
+	log.Println(clientDetails)
+	for _, v := range clientDetails {
+		log.Println(v.ID)
+		clientStore.Set(v.ID, &models.Client{
+			ID:     v.ID,
+			Secret: v.Secret,
+			Domain: v.Domain,
+		})
+	}
+
 	manager.MapClientStorage(clientStore)
 
+	log.Println(clientStore.GetByID(context.TODO(), "uxin"))
 	srv := server.NewServer(server.NewConfig(), manager)
 
-	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
-		if username == "test" && password == "test" {
-			userID = "test"
-		}
-		return
-	})
+	// srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
+	// 	if username == "test" && password == "test" {
+	// 		userID = "test"
+	// 	}
+	// 	return
+	// })
+
+	srv.SetPasswordAuthorizationHandler(validatePassword)
 
 	srv.SetUserAuthorizationHandler(userAuthorizeHandler)
 
@@ -82,7 +112,9 @@ func main() {
 
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/auth", authHandler)
-
+	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write([]byte("777"))
+	})
 	http.HandleFunc("/oauth/authorize", func(w http.ResponseWriter, r *http.Request) {
 		if dumpvar {
 			dumpRequest(os.Stdout, "authorize", r)
@@ -143,7 +175,7 @@ func main() {
 	log.Printf("Server is running at %d port.\n", portvar)
 	log.Printf("Point your OAuth client Auth endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/authorize")
 	log.Printf("Point your OAuth client Token endpoint to %s:%d%s", "http://localhost", portvar, "/oauth/token")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d",portvar), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", portvar), nil))
 }
 
 func dumpRequest(writer io.Writer, header string, r *http.Request) error {
@@ -240,4 +272,37 @@ func outputHTML(w http.ResponseWriter, req *http.Request, filename string) {
 	defer file.Close()
 	fi, _ := file.Stat()
 	http.ServeContent(w, req, file.Name(), fi.ModTime(), file)
+}
+
+func validatePassword(username, password string) (userID string, err error) {
+
+	pwd, err := db.Redis.Get(context.TODO(), username).Result()
+	if err != nil && err != redis.Nil {
+		return "", err
+	}
+
+	if err == redis.Nil {
+		type User struct {
+			UserName string `gorm:"column:USERNAME;primaryKey"`
+			Password string `gorm:"column:PWD"`
+		}
+		var user User
+		err := db.DB.Table("sys_user").First(&user, username).Error
+		if err != nil && !goerrors.Is(err, gorm.ErrRecordNotFound) {
+			return "", err
+		}
+		if goerrors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		pwd = user.Password
+		if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, 600*time.Second).Err(); err != nil {
+			return "", err
+		}
+	}
+
+	if pwd == password {
+		log.Println(username, pwd)
+		return username, nil
+	}
+	return "", goerrors.New("incorrect account password")
 }

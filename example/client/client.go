@@ -21,8 +21,8 @@ const (
 
 var (
 	config = oauth2.Config{
-		ClientID:     "222222",
-		ClientSecret: "22222222",
+		ClientID:     "uxin",
+		ClientSecret: "063b37bb2356537b2315454f1b7888d9",
 		Scopes:       []string{"all"},
 		RedirectURL:  "http://localhost:9094/oauth2",
 		Endpoint: oauth2.Endpoint{
@@ -41,6 +41,9 @@ func main() {
 		http.Redirect(w, r, u, http.StatusFound)
 	})
 
+	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write([]byte("555"))
+	})
 	http.HandleFunc("/oauth2", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		state := r.Form.Get("state")
@@ -101,7 +104,8 @@ func main() {
 	})
 
 	http.HandleFunc("/pwd", func(w http.ResponseWriter, r *http.Request) {
-		token, err := config.PasswordCredentialsToken(context.Background(), "test", "test")
+
+		token, err := config.PasswordCredentialsToken(context.Background(), r.FormValue("user"), r.FormValue("pwd"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

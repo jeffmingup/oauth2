@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -257,12 +258,14 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 	req, err := s.ValidationAuthorizeRequest(r)
 	if err != nil {
+		log.Println("6666")
 		return s.redirectError(w, req, err)
 	}
 
 	// user authorization
 	userID, err := s.UserAuthorizationHandler(w, r)
 	if err != nil {
+		log.Println("7777777")
 		return s.redirectError(w, req, err)
 	} else if userID == "" {
 		return nil
@@ -290,6 +293,7 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 	ti, err := s.GetAuthorizeToken(ctx, req)
 	if err != nil {
+		log.Println("09999", err.Error())
 		return s.redirectError(w, req, err)
 	}
 
