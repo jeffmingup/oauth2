@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	goerrors "errors"
 	"flag"
@@ -18,8 +20,11 @@ import (
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
+	"github.com/golang-jwt/jwt"
+
 	"github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/internal/pkg/db"
+	"github.com/go-oauth2/oauth2/v4/internal/pkg/tool"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	"github.com/go-oauth2/oauth2/v4/models"
 	"github.com/go-oauth2/oauth2/v4/server"
@@ -36,7 +41,7 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&dumpvar, "d", true, "Dump requests and responses")
+	flag.BoolVar(&dumpvar, "d", false, "Dump requests and responses")
 	flag.StringVar(&idvar, "i", "222222", "The client id being passed in")
 	flag.StringVar(&secretvar, "s", "22222222", "The client secret being passed in")
 	flag.StringVar(&domainvar, "r", "http://localhost:9094", "The domain of the redirect url")
@@ -56,8 +61,8 @@ func main() {
 	manager.MustTokenStorage(store.NewMemoryTokenStore())
 
 	// generate jwt access token
-	// manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS512))
-	manager.MapAccessGenerate(generates.NewAccessGenerate())
+	manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS256))
+	// manager.MapAccessGenerate(generates.NewAccessGenerate())
 
 	clientStore := store.NewClientStore()
 	// clientStore.Set(idvar, &models.Client{
@@ -276,6 +281,15 @@ func outputHTML(w http.ResponseWriter, req *http.Request, filename string) {
 
 func validatePassword(username, password string) (userID string, err error) {
 
+	//password 进行aes解密
+	passwordByte, err := base64.StdEncoding.DecodeString(password)
+	if err != nil {
+		return "", err
+	}
+	key := []byte("ABCDEFGHIJKLMNOP") // 加密的密钥
+	password = string(tool.AesDecryptCBC(passwordByte, key))
+	// log.Println("解密后的password:", password)
+
 	pwd, err := db.Redis.Get(context.TODO(), username).Result()
 	if err != nil && err != redis.Nil {
 		return "", err
@@ -300,8 +314,16 @@ func validatePassword(username, password string) (userID string, err error) {
 		}
 	}
 
-	if pwd == password {
-		log.Println(username, pwd)
+	// if pwd == password {
+	// 	// log.Println(username, pwd)
+	// 	return username, nil
+	// }
+	md5Data := md5.Sum([]byte(password))
+	md5Data = md5.Sum(md5Data[:])
+	// log.Print("password的MD5值：")
+	// log.Printf("%x\n", md5Data)
+	if pwd != "" {
+		// log.Println(username, pwd)
 		return username, nil
 	}
 	return "", goerrors.New("incorrect account password")
