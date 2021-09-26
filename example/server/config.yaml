@@ -5,3 +5,6 @@ redis:
   password: 
   db: 0
   user-info-exp: 3600     #用户登录信息缓存时间（单位秒）
+
+jwt: 00000000
+aes: ABCDEFGHIJKLMNOP

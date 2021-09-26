@@ -39,6 +39,7 @@ var (
 	secretvar string
 	domainvar string
 	portvar   int
+	aesKey    string
 )
 
 func init() {
@@ -55,6 +56,7 @@ func init() {
 	if err != nil {               // Handle errors reading the config file
 		panic(fmt.Errorf("Fatal error config file: %w \n", err))
 	}
+	aesKey = viper.GetString("aes")
 	db.GormInit()
 	db.RedisInit()
 }
@@ -72,7 +74,7 @@ func main() {
 	manager.MustTokenStorage(store.NewMemoryTokenStore())
 
 	// generate jwt access token
-	manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte("00000000"), jwt.SigningMethodHS256))
+	manager.MapAccessGenerate(generates.NewJWTAccessGenerate("", []byte(viper.GetString("jwt")), jwt.SigningMethodHS256))
 	// manager.MapAccessGenerate(generates.NewAccessGenerate())
 
 	clientStore := store.NewClientStore()
@@ -297,7 +299,7 @@ func validatePassword(username, password string) (userID string, err error) {
 	if err != nil {
 		return "", err
 	}
-	key := []byte("ABCDEFGHIJKLMNOP") // 加密的密钥
+	key := []byte(aesKey) // 加密的密钥
 	password = string(tool.AesDecryptCBC(passwordByte, key))
 	// log.Println("解密后的password:", password)
 
