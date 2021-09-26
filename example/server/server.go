@@ -18,6 +18,7 @@ import (
 
 	"github.com/go-oauth2/oauth2/v4/generates"
 	"github.com/go-redis/redis/v8"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 
 	"github.com/golang-jwt/jwt"
@@ -46,6 +47,16 @@ func init() {
 	flag.StringVar(&secretvar, "s", "22222222", "The client secret being passed in")
 	flag.StringVar(&domainvar, "r", "http://localhost:9094", "The domain of the redirect url")
 	flag.IntVar(&portvar, "p", 9096, "the base port for the server")
+
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(".")      // optionally look for config in the working directory
+	err := viper.ReadInConfig()   // Find and read the config file
+	if err != nil {               // Handle errors reading the config file
+		panic(fmt.Errorf("Fatal error config file: %w \n", err))
+	}
+	db.GormInit()
+	db.RedisInit()
 }
 
 func main() {
@@ -309,7 +320,7 @@ func validatePassword(username, password string) (userID string, err error) {
 			return "", nil
 		}
 		pwd = user.Password
-		if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, 600*time.Second).Err(); err != nil {
+		if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, time.Duration(viper.GetInt("redis.user-info-exp"))*time.Second).Err(); err != nil {
 			return "", err
 		}
 	}

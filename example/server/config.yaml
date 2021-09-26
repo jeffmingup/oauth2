@@ -1,0 +1,7 @@
+mariadb:
+  dsn: root:root@tcp(127.0.0.1:3306)/oauth2?charset=utf8mb4&parseTime=True&loc=Local
+redis:
+  addr: localhost:6379
+  password: 
+  db: 0
+  user-info-exp: 3600     #用户登录信息缓存时间（单位秒）

@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/spf13/viper"
 )
 
 var Redis *redis.Client
 
-func init() {
+func RedisInit() {
 	Redis = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     viper.GetString("redis.addr"),
+		Password: viper.GetString("redis.password"), // no password set
+		DB:       viper.GetInt("redis.db"),  // use default DB
 	})
 	_, err := Redis.Ping(context.TODO()).Result()
 	if err != nil {

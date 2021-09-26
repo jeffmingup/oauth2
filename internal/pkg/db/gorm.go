@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -24,8 +25,9 @@ var defaultConfig = &gorm.Config{
 var DB *gorm.DB
 
 // NewStore create mysql store instance,
-func init() {
-	dsn := "root:root@tcp(127.0.0.1:3306)/oauth2?charset=utf8mb4&parseTime=True&loc=Local"
+func GormInit() {
+	// dsn := "root:root@tcp(127.0.0.1:3306)/oauth2?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := viper.GetString("mariadb.dsn")
 	db, err := gorm.Open(mysql.Open(dsn), defaultConfig)
 	if err != nil {
 		panic(err)

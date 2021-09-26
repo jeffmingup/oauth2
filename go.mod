@@ -11,7 +11,7 @@ require (
 	github.com/go-session/session v3.1.2+incompatible
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jfeliu007/goplantuml v1.5.2 // indirect
@@ -23,7 +23,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/afero v1.6.0 // indirect
-	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/spf13/viper v1.9.0
 	github.com/tidwall/buntdb v1.1.2
 	github.com/tidwall/gjson v1.6.0 // indirect
 	github.com/tidwall/pretty v1.0.1 // indirect
@@ -34,8 +34,6 @@ require (
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	google.golang.org/appengine v1.6.6 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	gorm.io/driver/mysql v1.1.2
 	gorm.io/gorm v1.21.15
 )
