@@ -22,7 +22,7 @@ type ClientScopeHandler func(tgr *oauth2.TokenGenerateRequest) (allowed bool, er
 type UserAuthorizationHandler func(w http.ResponseWriter, r *http.Request) (userID string, err error)
 
 // PasswordAuthorizationHandler get user id from username and password
-type PasswordAuthorizationHandler func(username, password string) (userID string, err error)
+type PasswordAuthorizationHandler func(username, password string) (oauth2.UserInfo, error)
 
 // RefreshingScopeHandler check the scope of the refreshing token
 type RefreshingScopeHandler func(tgr *oauth2.TokenGenerateRequest, oldScope string) (allowed bool, err error)

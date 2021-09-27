@@ -55,3 +55,8 @@ type TokenInfo interface {
 	GetRefreshExpiresIn() time.Duration
 	SetRefreshExpiresIn(time.Duration)
 }
+
+type UserInfo interface {
+	GetID() string
+	GetDetail() string
+}

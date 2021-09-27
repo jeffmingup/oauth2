@@ -16,6 +16,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/generates"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
@@ -292,12 +293,12 @@ func outputHTML(w http.ResponseWriter, req *http.Request, filename string) {
 	http.ServeContent(w, req, file.Name(), fi.ModTime(), file)
 }
 
-func validatePassword(username, password string) (userID string, err error) {
+func validatePassword(username, password string) (oauth2.UserInfo, error) {
 
 	//password 进行aes解密
 	passwordByte, err := base64.StdEncoding.DecodeString(password)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	key := []byte(aesKey) // 加密的密钥
 	password = string(tool.AesDecryptCBC(passwordByte, key))
@@ -305,26 +306,29 @@ func validatePassword(username, password string) (userID string, err error) {
 
 	pwd, err := db.Redis.Get(context.TODO(), username).Result()
 	if err != nil && err != redis.Nil {
-		return "", err
+		return nil, err
 	}
+	type User struct {
+		UserName string `gorm:"column:USERNAME;primaryKey"`
+		Password string `gorm:"column:PWD" json:"-"`
+		AreaID   string `gorm:"column:AREA_ID"`
+		UserType string `gorm:"column:USERTYPE"`
+	}
+	var user User
 
 	if err == redis.Nil {
-		type User struct {
-			UserName string `gorm:"column:USERNAME;primaryKey"`
-			Password string `gorm:"column:PWD"`
-		}
-		var user User
+
 		err := db.DB.Table("sys_user").First(&user, username).Error
 		if err != nil && !goerrors.Is(err, gorm.ErrRecordNotFound) {
-			return "", err
+			return nil, err
 		}
 		if goerrors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil
+			return nil, nil
 		}
 		pwd = user.Password
-		if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, time.Duration(viper.GetInt("redis.user-info-exp"))*time.Second).Err(); err != nil {
-			return "", err
-		}
+		// if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, time.Duration(viper.GetInt("redis.user-info-exp"))*time.Second).Err(); err != nil {
+		// 	return nil, err
+		// }
 	}
 
 	// if pwd == password {
@@ -336,8 +340,12 @@ func validatePassword(username, password string) (userID string, err error) {
 	// log.Print("password的MD5值：")
 	// log.Printf("%x\n", md5Data)
 	if pwd != "" {
-		// log.Println(username, pwd)
-		return username, nil
+		log.Println(user)
+		detail, err := json.Marshal(user)
+		if err != nil {
+			return nil, err
+		}
+		return &models.User{ID: user.UserName, Detail: string(detail)}, nil
 	}
-	return "", goerrors.New("incorrect account password")
+	return nil, goerrors.New("incorrect account password")
 }

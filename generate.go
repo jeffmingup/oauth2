@@ -13,6 +13,7 @@ type GenerateBasic struct {
 	CreateAt  time.Time
 	TokenInfo TokenInfo
 	Request   *http.Request
+	UserInfo  string
 }
 
 // AuthorizeGenerate generate the authorization code interface

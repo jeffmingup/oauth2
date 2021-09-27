@@ -33,9 +33,9 @@ func NewServer(cfg *Config, manager oauth2.Manager) *Server {
 		return "", errors.ErrAccessDenied
 	}
 
-	srv.PasswordAuthorizationHandler = func(username, password string) (string, error) {
-		return "", errors.ErrAccessDenied
-	}
+	// srv.PasswordAuthorizationHandler = func(username, password string) (string, error) {
+	// 	return "", errors.ErrAccessDenied
+	// }
 	return srv
 }
 
@@ -351,13 +351,14 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 			return "", nil, errors.ErrInvalidRequest
 		}
 
-		userID, err := s.PasswordAuthorizationHandler(username, password)
+		user, err := s.PasswordAuthorizationHandler(username, password)
 		if err != nil {
 			return "", nil, err
-		} else if userID == "" {
+		} else if user == nil {
 			return "", nil, errors.ErrInvalidGrant
 		}
-		tgr.UserID = userID
+		tgr.UserID = user.GetID()
+		tgr.UserDetail = user.GetDetail()
 	case oauth2.ClientCredentials:
 		tgr.Scope = r.FormValue("scope")
 	case oauth2.Refreshing:
