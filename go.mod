@@ -21,6 +21,7 @@ require (
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/sclevine/agouti v3.0.0+incompatible // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
+	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/viper v1.9.0
@@ -33,6 +34,7 @@ require (
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
+	go.uber.org/zap v1.19.1
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	gorm.io/driver/mysql v1.1.2
 	gorm.io/gorm v1.21.15

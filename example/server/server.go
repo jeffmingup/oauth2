@@ -9,17 +9,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"time"
 
+	"log"
+
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/generates"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/golang-jwt/jwt"
@@ -32,6 +34,8 @@ import (
 	"github.com/go-oauth2/oauth2/v4/server"
 	"github.com/go-oauth2/oauth2/v4/store"
 	"github.com/go-session/session"
+
+	_ "net/http/pprof"
 )
 
 var (
@@ -43,7 +47,10 @@ var (
 	aesKey    string
 )
 
+var logger *zap.Logger
+
 func init() {
+
 	flag.BoolVar(&dumpvar, "d", false, "Dump requests and responses")
 	flag.StringVar(&idvar, "i", "222222", "The client id being passed in")
 	flag.StringVar(&secretvar, "s", "22222222", "The client secret being passed in")
@@ -60,11 +67,42 @@ func init() {
 	aesKey = viper.GetString("aes")
 	db.GormInit()
 	db.RedisInit()
+
 }
 
 func main() {
+	logFile, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
+	rawJSON := []byte(`{
+    "level":"debug",
+    "encoding":"json",
+    "outputPaths": [ "test.log"],
+    "errorOutputPaths": ["stderr"],
+    "encoderConfig": {
+      "messageKey": "message",
+      "levelKey": "level",
+      "levelEncoder": "lowercase"
+    }
+  }`)
+
+	var cfg zap.Config
+	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
+		panic(err)
+	}
+	logger, err = cfg.Build()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
+
+	logger.Info("server start work successfully!")
+
 	flag.Parse()
-	log.SetFlags(log.LstdFlags | log.Llongfile)
 	if dumpvar {
 		log.Println("Dumping requests")
 	}
@@ -303,18 +341,17 @@ func validatePassword(username, password string) (oauth2.UserInfo, error) {
 	key := []byte(aesKey) // 加密的密钥
 	password = string(tool.AesDecryptCBC(passwordByte, key))
 	// log.Println("解密后的password:", password)
-
-	pwd, err := db.Redis.Get(context.TODO(), username).Result()
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
 	type User struct {
 		UserName string `gorm:"column:USERNAME;primaryKey"`
-		Password string `gorm:"column:PWD" json:"-"`
+		Password string `gorm:"column:PWD"`
 		AreaID   string `gorm:"column:AREA_ID"`
 		UserType string `gorm:"column:USERTYPE"`
 	}
 	var user User
+	userDetail, err := db.Redis.Get(context.TODO(), username).Result()
+	if err != nil && err != redis.Nil {
+		return nil, err
+	}
 
 	if err == redis.Nil {
 
@@ -325,27 +362,29 @@ func validatePassword(username, password string) (oauth2.UserInfo, error) {
 		if goerrors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		pwd = user.Password
-		// if err := db.Redis.SetNX(context.TODO(), user.UserName, user.Password, time.Duration(viper.GetInt("redis.user-info-exp"))*time.Second).Err(); err != nil {
-		// 	return nil, err
-		// }
+		detail, err := json.Marshal(user)
+		if err != nil {
+			return nil, err
+		}
+		userDetail = string(detail)
+		if err := db.Redis.SetNX(context.TODO(), user.UserName, detail, time.Duration(viper.GetInt("redis.user-info-exp"))*time.Second).Err(); err != nil {
+			return nil, err
+		}
+
 	}
 
 	// if pwd == password {
 	// 	// log.Println(username, pwd)
 	// 	return username, nil
 	// }
+	if err := json.Unmarshal([]byte(userDetail), &user); err != nil {
+		return nil, err
+	}
 	md5Data := md5.Sum([]byte(password))
 	md5Data = md5.Sum(md5Data[:])
-	// log.Print("password的MD5值：")
-	// log.Printf("%x\n", md5Data)
-	if pwd != "" {
-		log.Println(user)
-		detail, err := json.Marshal(user)
-		if err != nil {
-			return nil, err
-		}
-		return &models.User{ID: user.UserName, Detail: string(detail)}, nil
+	log.Println(userDetail)
+	if user.Password != "" { //验证密码
+		return &models.User{ID: user.UserName, Detail: userDetail}, nil
 	}
 	return nil, goerrors.New("incorrect account password")
 }
