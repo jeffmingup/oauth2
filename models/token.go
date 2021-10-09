@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/go-oauth2/oauth2/v4"
@@ -183,4 +184,9 @@ func (t *Token) GetRefreshExpiresIn() time.Duration {
 // SetRefreshExpiresIn the lifetime in seconds of the refresh token
 func (t *Token) SetRefreshExpiresIn(exp time.Duration) {
 	t.RefreshExpiresIn = exp
+}
+
+func (t *Token) GetInfo() string {
+	info, _ := json.Marshal(&t)
+	return string(info)
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
-	"github.com/google/uuid"
 	"github.com/tidwall/buntdb"
 )
 
@@ -33,18 +32,18 @@ type TokenStore struct {
 // Create create and store the new token information
 func (ts *TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	ct := time.Now()
-	jv, err := json.Marshal(info)
+	_, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
 
 	return ts.db.Update(func(tx *buntdb.Tx) error {
+		// jvStr := string(jv)
+		jvStr := info.GetInfo()
 		if code := info.GetCode(); code != "" {
-			_, _, err := tx.Set(code, string(jv), &buntdb.SetOptions{Expires: true, TTL: info.GetCodeExpiresIn()})
+			_, _, err := tx.Set(code, jvStr, &buntdb.SetOptions{Expires: true, TTL: info.GetCodeExpiresIn()})
 			return err
 		}
-
-		basicID := uuid.Must(uuid.NewRandom()).String()
 		aexp := info.GetAccessExpiresIn()
 		rexp := aexp
 		expires := true
@@ -54,17 +53,15 @@ func (ts *TokenStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 				aexp = rexp
 			}
 			expires = info.GetRefreshExpiresIn() != 0
-			_, _, err := tx.Set(refresh, basicID, &buntdb.SetOptions{Expires: expires, TTL: rexp})
+			_, _, err := tx.Set(refresh, jvStr, &buntdb.SetOptions{Expires: expires, TTL: rexp})
 			if err != nil {
 				return err
 			}
 		}
-
-		_, _, err := tx.Set(basicID, string(jv), &buntdb.SetOptions{Expires: expires, TTL: rexp})
 		if err != nil {
 			return err
 		}
-		_, _, err = tx.Set(info.GetAccess(), basicID, &buntdb.SetOptions{Expires: expires, TTL: aexp})
+		// _, _, err = tx.Set(info.GetAccess(), jvStr, &buntdb.SetOptions{Expires: expires, TTL: aexp})
 		return err
 	})
 }
@@ -121,24 +118,24 @@ func (ts *TokenStore) getData(key string) (oauth2.TokenInfo, error) {
 	return ti, nil
 }
 
-func (ts *TokenStore) getBasicID(key string) (string, error) {
-	var basicID string
-	err := ts.db.View(func(tx *buntdb.Tx) error {
-		v, err := tx.Get(key)
-		if err != nil {
-			return err
-		}
-		basicID = v
-		return nil
-	})
-	if err != nil {
-		if err == buntdb.ErrNotFound {
-			return "", nil
-		}
-		return "", err
-	}
-	return basicID, nil
-}
+// func (ts *TokenStore) getBasicID(key string) (string, error) {
+// 	var basicID string
+// 	err := ts.db.View(func(tx *buntdb.Tx) error {
+// 		v, err := tx.Get(key)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		basicID = v
+// 		return nil
+// 	})
+// 	if err != nil {
+// 		if err == buntdb.ErrNotFound {
+// 			return "", nil
+// 		}
+// 		return "", err
+// 	}
+// 	return basicID, nil
+// }
 
 // GetByCode use the authorization code for token information data
 func (ts *TokenStore) GetByCode(ctx context.Context, code string) (oauth2.TokenInfo, error) {
@@ -147,18 +144,10 @@ func (ts *TokenStore) GetByCode(ctx context.Context, code string) (oauth2.TokenI
 
 // GetByAccess use the access token for token information data
 func (ts *TokenStore) GetByAccess(ctx context.Context, access string) (oauth2.TokenInfo, error) {
-	basicID, err := ts.getBasicID(access)
-	if err != nil {
-		return nil, err
-	}
-	return ts.getData(basicID)
+	return ts.getData(access)
 }
 
 // GetByRefresh use the refresh token for token information data
 func (ts *TokenStore) GetByRefresh(ctx context.Context, refresh string) (oauth2.TokenInfo, error) {
-	basicID, err := ts.getBasicID(refresh)
-	if err != nil {
-		return nil, err
-	}
-	return ts.getData(basicID)
+	return ts.getData(refresh)
 }

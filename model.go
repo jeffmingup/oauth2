@@ -54,6 +54,8 @@ type TokenInfo interface {
 	SetRefreshCreateAt(time.Time)
 	GetRefreshExpiresIn() time.Duration
 	SetRefreshExpiresIn(time.Duration)
+
+	GetInfo() string
 }
 
 type UserInfo interface {
